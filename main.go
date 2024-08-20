@@ -11,7 +11,7 @@ import (
 Datastore consumtion code
 */
 func main() {
-	ds := datastore.NewKeyValueDataStore(time.Duration(2 * time.Second))
+	ds := datastore.NewKeyValueDataStore(2 * time.Second)
 	ds.Put("1", 10)
 	ds.Put("2", "shubham")
 	ds.Put("3", 7845)
@@ -24,5 +24,4 @@ func main() {
 
 	time.Sleep(1 * time.Second)
 	fmt.Printf("Records present in Datastore \n%+v\n", ds.GetAllKeyValues())
-
 }
