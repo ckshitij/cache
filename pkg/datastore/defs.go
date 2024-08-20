@@ -11,6 +11,6 @@ type DataStoreElement struct {
 
 type DataStore interface {
 	Get(key string) (any, bool)
-	Put(key string, value string)
-	GetAllKeys() ([]string, error)
+	Put(key string, value any)
+	GetAllKeyValues() map[string]any
 }

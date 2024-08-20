@@ -1,25 +1,53 @@
 package datastore
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
-type inMemoryDataStore struct {
+type inMemoryKeyValueDatastore struct {
+	// Map maintains the value
 	elements map[string]DataStoreElement
-	ttl      time.Duration
+	// element will not be
+	// valid after the ttl duration
+	ttl time.Duration
+	// for handling concurrency using mutex
+	sync.RWMutex
 }
 
-func NewDataStore(ttl time.Duration) DataStore {
-	return &inMemoryDataStore{
+/*
+Create a key value datastore instance with given ttl
+(time to live).
+*/
+func NewKeyValueDataStore(ttl time.Duration) DataStore {
+	return &inMemoryKeyValueDatastore{
 		elements: make(map[string]DataStoreElement),
 		ttl:      ttl,
 	}
 }
 
-func (ele *inMemoryDataStore) Get(key string) (any, bool) {
+/*
+Return the value and a boolean value which indicate
+Whether the element is present on or not in the
+datastore.
+If the element exceed the ttl then it will get deleted
+and return nil and false value.
+*/
+func (ele *inMemoryKeyValueDatastore) Get(key string) (any, bool) {
+	ele.RLock()
 	val, ok := ele.elements[key]
+	if ok && ele.isExpired(val) {
+		return nil, false
+	}
 	return val, ok
 }
 
-func (ele *inMemoryDataStore) Put(key string, value string) {
+/*
+Add new record into the datastore.
+*/
+func (ele *inMemoryKeyValueDatastore) Put(key string, value any) {
+	ele.Lock()
+	defer ele.Unlock()
 	ele.elements[key] = DataStoreElement{
 		Key:       key,
 		Value:     value,
@@ -28,6 +56,31 @@ func (ele *inMemoryDataStore) Put(key string, value string) {
 	}
 }
 
-func (ele *inMemoryDataStore) GetAllKeys() ([]string, error) {
-	return nil, nil
+/*
+Return all the valid key to the user and also remove the
+expired record from the datastore
+*/
+func (ele *inMemoryKeyValueDatastore) GetAllKeyValues() map[string]any {
+	var allRecord = make(map[string]any)
+	for key, val := range ele.elements {
+		if ele.isExpired(val) {
+			continue
+		}
+		allRecord[key] = val.Value
+	}
+	return allRecord
+}
+
+func (ele *inMemoryKeyValueDatastore) GetAllRecords() map[string]DataStoreElement {
+	return ele.elements
+}
+
+func (ele *inMemoryKeyValueDatastore) isExpired(record DataStoreElement) bool {
+	if time.Since(record.CreatedAt) > ele.ttl {
+		ele.Lock()
+		delete(ele.elements, record.Key)
+		ele.Unlock()
+		return true
+	}
+	return false
 }
