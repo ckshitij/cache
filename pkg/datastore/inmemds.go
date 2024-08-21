@@ -1,6 +1,7 @@
 package datastore
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -57,7 +58,7 @@ func (ele *inMemoryKeyValueDatastore) Put(key string, value any) {
 }
 
 /*
-Return all the valid key to the user and also remove the
+Return all the valid key-values to the user and also remove the
 expired record from the datastore
 */
 func (ele *inMemoryKeyValueDatastore) GetAllKeyValues() map[string]any {
@@ -71,16 +72,30 @@ func (ele *inMemoryKeyValueDatastore) GetAllKeyValues() map[string]any {
 	return allRecord
 }
 
-func (ele *inMemoryKeyValueDatastore) GetAllRecords() map[string]DataStoreElement {
-	return ele.elements
-}
-
 func (ele *inMemoryKeyValueDatastore) isExpired(record DataStoreElement) bool {
 	if time.Since(record.CreatedAt) > ele.ttl {
 		ele.Lock()
+		fmt.Println("Removing data with key: ", record.Key, " value : ", record.Value)
 		delete(ele.elements, record.Key)
 		ele.Unlock()
 		return true
 	}
 	return false
+}
+
+/*
+Run it as go-routine so that it will automatically
+remove the data which exceeds ttl.
+*/
+func (ele *inMemoryKeyValueDatastore) AutoCleanUp(checkInterval time.Duration, done <-chan bool) {
+	ticker := time.NewTicker(checkInterval)
+	for {
+		select {
+		case <-ticker.C:
+			ele.GetAllKeyValues()
+		case <-done:
+			fmt.Println("Closing the AutoCleanUp")
+			return
+		}
+	}
 }

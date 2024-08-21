@@ -2,26 +2,74 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/ckshitij/data-store/pkg/datastore"
 )
 
+func multiSignalHandler(signal os.Signal, done chan bool) {
+
+	fmt.Println("Started the multiSignal Handler")
+	switch signal {
+	case syscall.SIGHUP:
+		fmt.Println("Signal: syscall.SIGHUP ", signal.String())
+		done <- true
+		time.Sleep(1 * time.Second)
+		close(done)
+		os.Exit(0)
+	case syscall.SIGINT:
+		fmt.Println("Signal: syscall.SIGINT ", signal.String())
+		done <- true
+		time.Sleep(1 * time.Second)
+		close(done)
+		os.Exit(0)
+	case syscall.SIGTERM:
+		fmt.Println("Signal: syscall.SIGTERM ", signal.String())
+		done <- true
+		time.Sleep(1 * time.Second)
+		close(done)
+		os.Exit(0)
+	default:
+		fmt.Println("Unhandled/unknown signal")
+	}
+}
+
 /*
-Datastore consumtion code
+Demo to how to consume the inmemory key value datastore
 */
 func main() {
-	ds := datastore.NewKeyValueDataStore(2 * time.Second)
-	ds.Put("1", 10)
-	ds.Put("2", "shubham")
-	ds.Put("3", 7845)
-	ds.Put("4", []string{"kshitij", "chaurasiya"})
 
-	time.Sleep(1 * time.Second)
-	ds.Put("6", 784.05)
-	ds.Put("7", []int{2, 3})
-	fmt.Printf("Records present in Datastore \n%+v\n", ds.GetAllKeyValues())
+	sigchnl := make(chan os.Signal, 1)
+	signal.Notify(
+		sigchnl,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+	) //we can add more sycalls.SIGQUIT etc.
 
-	time.Sleep(1 * time.Second)
-	fmt.Printf("Records present in Datastore \n%+v\n", ds.GetAllKeyValues())
+	done := make(chan bool)
+	go func() {
+		for {
+			s := <-sigchnl
+			multiSignalHandler(s, done)
+		}
+	}()
+
+	ds := datastore.NewKeyValueDataStore(1 * time.Second)
+
+	go ds.AutoCleanUp(3*time.Second, done)
+
+	var i int64 = 0
+	for {
+		key := fmt.Sprintf(" key-%d", i+1)
+		value := fmt.Sprintf(" value-%d", i+1)
+		ds.Put(key, value)
+
+		time.Sleep(100 * time.Millisecond)
+		i++
+	}
+
 }
