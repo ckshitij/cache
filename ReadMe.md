@@ -74,7 +74,7 @@ In-memory datastore library in Go which can be used to store the key-value pair 
                 }
             }()
 
-            ds := datastore.NewKeyValueDataStore(1 * time.Second)
+            ds := inmemds.NewKeyValueDataStore(1 * time.Second)
 
             go ds.AutoCleanUp(3*time.Second, done)
 

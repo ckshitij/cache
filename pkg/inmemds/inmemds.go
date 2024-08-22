@@ -1,4 +1,4 @@
-package datastore
+package inmemds
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 
 type inMemoryKeyValueDatastore struct {
 	// Map maintains the value
-	elements map[string]DataStoreElement
+	elements map[string]DatastoreEntity
 	// element will not be
 	// valid after the ttl duration
 	ttl time.Duration
@@ -20,9 +20,9 @@ type inMemoryKeyValueDatastore struct {
 Create a key value datastore instance with given ttl
 (time to live).
 */
-func NewKeyValueDataStore(ttl time.Duration) DataStore {
+func NewKeyValueDataStore(ttl time.Duration) KeyValueDataStore {
 	return &inMemoryKeyValueDatastore{
-		elements: make(map[string]DataStoreElement),
+		elements: make(map[string]DatastoreEntity),
 		ttl:      ttl,
 	}
 }
@@ -34,11 +34,13 @@ datastore.
 If the element exceed the ttl then it will get deleted
 and return nil and false value.
 */
-func (ele *inMemoryKeyValueDatastore) Get(key string) (any, bool) {
+func (ele *inMemoryKeyValueDatastore) Get(key string) (DatastoreEntity, bool) {
 	ele.RLock()
 	val, ok := ele.elements[key]
+	ele.RUnlock()
+
 	if ok && ele.isExpired(val) {
-		return nil, false
+		return DatastoreEntity{}, false
 	}
 	return val, ok
 }
@@ -49,7 +51,7 @@ Add new record into the datastore.
 func (ele *inMemoryKeyValueDatastore) Put(key string, value any) {
 	ele.Lock()
 	defer ele.Unlock()
-	ele.elements[key] = DataStoreElement{
+	ele.elements[key] = DatastoreEntity{
 		Key:       key,
 		Value:     value,
 		CreatedAt: time.Now().UTC(),
@@ -72,7 +74,7 @@ func (ele *inMemoryKeyValueDatastore) GetAllKeyValues() map[string]any {
 	return allRecord
 }
 
-func (ele *inMemoryKeyValueDatastore) isExpired(record DataStoreElement) bool {
+func (ele *inMemoryKeyValueDatastore) isExpired(record DatastoreEntity) bool {
 	if time.Since(record.CreatedAt) > ele.ttl {
 		ele.Lock()
 		fmt.Println("Removing data with key: ", record.Key, " value : ", record.Value)
