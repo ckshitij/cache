@@ -1,4 +1,4 @@
-name: golangci-lint
+name: code-quality-check
 on:
   push:
     branches:
@@ -10,7 +10,7 @@ permissions:
   # pull-requests: read
 
 jobs:
-  golangci:
+  code-quality-check:
     name: lint
     runs-on: ubuntu-latest
     steps:
@@ -22,3 +22,8 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.60
+      - name: execute unit tests
+        run: go test ./...
+      - name: execute vet 
+        run: go vet ./...
+    

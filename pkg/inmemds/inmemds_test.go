@@ -102,13 +102,13 @@ func TestAutoCleanUp(t *testing.T) {
 func TestConcurrentAccess(t *testing.T) {
 	ds := NewKeyValueDataStore(5 * time.Second)
 
-	// Run concurrent writes
-	for i := 0; i < 100; i++ {
+	// Run concurrent writes using integer range
+	for i := range make([]struct{}, 100) {
 		go ds.Put(fmt.Sprintf("key%d", i), fmt.Sprintf("value%d", i))
 	}
 
-	// Run concurrent reads
-	for i := 0; i < 100; i++ {
+	// Run concurrent reads using integer range
+	for i := range make([]struct{}, 100) {
 		go func(i int) {
 			ds.Get(fmt.Sprintf("key%d", i))
 		}(i)
@@ -116,7 +116,7 @@ func TestConcurrentAccess(t *testing.T) {
 
 	// Ensure all values are accessible
 	time.Sleep(1 * time.Second)
-	for i := 0; i < 100; i++ {
+	for i := range make([]struct{}, 100) {
 		val, ok := ds.Get(fmt.Sprintf("key%d", i))
 		if !ok || val.Value != fmt.Sprintf("value%d", i) {
 			t.Errorf("expected value %v, got %v", fmt.Sprintf("value%d", i), val.Value)
