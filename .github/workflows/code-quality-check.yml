@@ -24,6 +24,5 @@ jobs:
           version: v1.60
       - name: execute unit tests
         run: go test ./...
-      - name: execute vet 
+      - name: execute vet
         run: go vet ./...
-    
