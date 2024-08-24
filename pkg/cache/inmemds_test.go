@@ -1,4 +1,4 @@
-package inmemds
+package cache
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 func TestNewKeyValueDataStore(t *testing.T) {
 	key, value := "DOB", "26/07/1996"
 	ttl := time.Second
-	ds := NewKeyValueDataStore(ttl)
+	ds := NewKeyValueCache[string](ttl)
 	ds.Put(key, value)
 
 	val, ok := ds.Get(key)
@@ -28,7 +28,7 @@ func TestNewKeyValueDataStore(t *testing.T) {
 }
 
 func TestPutAndGet(t *testing.T) {
-	ds := NewKeyValueDataStore(5 * time.Second)
+	ds := NewKeyValueCache[string](5 * time.Second)
 	key, value := "username", "user123"
 
 	// Test putting and getting a value
@@ -45,7 +45,7 @@ func TestPutAndGet(t *testing.T) {
 }
 
 func TestGetWithTTLExpiry(t *testing.T) {
-	ds := NewKeyValueDataStore(1 * time.Second)
+	ds := NewKeyValueCache[string](1 * time.Second)
 	key, value := "sessionID", "abc123"
 
 	// Put value
@@ -62,7 +62,7 @@ func TestGetWithTTLExpiry(t *testing.T) {
 }
 
 func TestGetAllKeyValues(t *testing.T) {
-	ds := NewKeyValueDataStore(5 * time.Second)
+	ds := NewKeyValueCache[string](5 * time.Second)
 	ds.Put("key1", "value1")
 	ds.Put("key2", "value2")
 	ds.Put("key3", "value3")
@@ -80,7 +80,7 @@ func TestGetAllKeyValues(t *testing.T) {
 }
 
 func TestAutoCleanUp(t *testing.T) {
-	ds := NewKeyValueDataStore(1 * time.Second)
+	ds := NewKeyValueCache[string](1 * time.Second)
 	key, value := "tempKey", "tempValue"
 	ds.Put(key, value)
 
@@ -100,7 +100,7 @@ func TestAutoCleanUp(t *testing.T) {
 }
 
 func TestConcurrentAccess(t *testing.T) {
-	ds := NewKeyValueDataStore(5 * time.Second)
+	ds := NewKeyValueCache[string](5 * time.Second)
 
 	// Run concurrent writes using integer range
 	for i := range make([]struct{}, 100) {

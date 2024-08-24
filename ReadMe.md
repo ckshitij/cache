@@ -1,12 +1,12 @@
-## Key-Value datastore library in go-lang
+## In-Memory Cache
 
-In-memory datastore library in Go which can be used to store the key-value pair in memory and also provide the auto cleanup functionality using time-to-live duration.
+In-memory cache library in go-lang which can be used to store the key-value pair in memory and also provide the auto cleanup functionality using time-to-live duration.
 
 ### Installation
 
 - Use the below command to install the library
     ```sh
-    go get github.com/ckshitij/data-store
+    go get github.com/ckshitij/cache
     ```
 
 ### Code consumption example
@@ -14,8 +14,6 @@ In-memory datastore library in Go which can be used to store the key-value pair 
 - Below is the main file example, to consume the key-value datastore library.
 
     ```go
-        package main
-
         import (
             "fmt"
             "os"
@@ -23,7 +21,7 @@ In-memory datastore library in Go which can be used to store the key-value pair 
             "syscall"
             "time"
 
-            "github.com/ckshitij/data-store/pkg/datastore"
+            "github.com/ckshitij/cache/pkg/cache"
         )
 
         func multiSignalHandler(signal os.Signal, done chan bool) {
@@ -74,7 +72,7 @@ In-memory datastore library in Go which can be used to store the key-value pair 
                 }
             }()
 
-            ds := inmemds.NewKeyValueDataStore(1 * time.Second)
+            ds := cache.NewKeyValueCache[string](1 * time.Second)
 
             go ds.AutoCleanUp(3*time.Second, done)
 
