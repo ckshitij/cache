@@ -10,24 +10,22 @@ import (
 	"github.com/ckshitij/cache/pkg/cache"
 )
 
-func multiSignalHandler(signal os.Signal, done chan bool) {
-
-	fmt.Println("Started the multiSignal Handler")
-	switch signal {
+func multiSignalHandler(sig os.Signal, done chan bool) {
+	switch sig {
 	case syscall.SIGHUP:
-		fmt.Println("Signal: syscall.SIGHUP ", signal.String())
+		fmt.Println("Signal: syscall.SIGHUP ", sig.String())
 		done <- true
 		time.Sleep(1 * time.Second)
 		close(done)
 		os.Exit(0)
 	case syscall.SIGINT:
-		fmt.Println("Signal: syscall.SIGINT ", signal.String())
+		fmt.Println("Signal: syscall.SIGINT ", sig.String())
 		done <- true
 		time.Sleep(1 * time.Second)
 		close(done)
 		os.Exit(0)
 	case syscall.SIGTERM:
-		fmt.Println("Signal: syscall.SIGTERM ", signal.String())
+		fmt.Println("Signal: syscall.SIGTERM ", sig.String())
 		done <- true
 		time.Sleep(1 * time.Second)
 		close(done)
@@ -41,14 +39,13 @@ func multiSignalHandler(signal os.Signal, done chan bool) {
 Demo to how to consume the inmemory key value datastore
 */
 func main() {
-
 	sigchnl := make(chan os.Signal, 1)
 	signal.Notify(
 		sigchnl,
 		syscall.SIGHUP,
 		syscall.SIGINT,
 		syscall.SIGTERM,
-	) //we can add more sycalls.SIGQUIT etc.
+	) // we can add more sycalls.SIGQUIT etc.
 
 	done := make(chan bool)
 	go func() {
