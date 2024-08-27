@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -9,7 +10,11 @@ import (
 func TestNewKeyValueDataStore(t *testing.T) {
 	key, value := "DOB", "26/07/1996"
 	ttl := time.Second
-	ds := NewKeyValueCache[string](ttl)
+	sweep := 3 * time.Second
+	ds, err := NewKeyValueCache[string](context.Background(), ttl, WithSweeping(sweep))
+	if err != nil {
+		t.Fatalf("initialize failed")
+	}
 	ds.Put(key, value)
 
 	val, ok := ds.Get(key)
@@ -18,17 +23,20 @@ func TestNewKeyValueDataStore(t *testing.T) {
 		t.Errorf("expected to get true, got false")
 	}
 
-	if val.Value != value {
-		t.Errorf("expected value to be %v, got %v", value, val.Value)
+	if val != value {
+		t.Errorf("expected value to be %v, got %v", value, val)
 	}
 
-	if val.TTL != ttl {
-		t.Errorf("expected TTL to be %v, got %v", ttl, val.TTL)
+	if ds.ttl != ttl {
+		t.Errorf("expected TTL to be %v, got %v", ttl, ds.ttl)
 	}
 }
 
 func TestPutAndGet(t *testing.T) {
-	ds := NewKeyValueCache[string](5 * time.Second)
+	ds, err := NewKeyValueCache[string](context.Background(), 5*time.Second)
+	if err != nil {
+		t.Fatalf("initialize failed")
+	}
 	key, value := "username", "user123"
 
 	// Test putting and getting a value
@@ -39,13 +47,16 @@ func TestPutAndGet(t *testing.T) {
 		t.Fatalf("expected to get true, got false")
 	}
 
-	if val.Value != value {
-		t.Errorf("expected value to be %v, got %v", value, val.Value)
+	if val != value {
+		t.Errorf("expected value to be %v, got %v", value, val)
 	}
 }
 
 func TestGetWithTTLExpiry(t *testing.T) {
-	ds := NewKeyValueCache[string](1 * time.Second)
+	ds, err := NewKeyValueCache[string](context.Background(), 1*time.Second)
+	if err != nil {
+		t.Fatalf("initialize failed")
+	}
 	key, value := "sessionID", "abc123"
 
 	// Put value
@@ -62,7 +73,10 @@ func TestGetWithTTLExpiry(t *testing.T) {
 }
 
 func TestGetAllKeyValues(t *testing.T) {
-	ds := NewKeyValueCache[string](5 * time.Second)
+	ds, err := NewKeyValueCache[string](context.Background(), 5*time.Second)
+	if err != nil {
+		t.Fatalf("cache init failed")
+	}
 	ds.Put("key1", "value1")
 	ds.Put("key2", "value2")
 	ds.Put("key3", "value3")
@@ -80,12 +94,13 @@ func TestGetAllKeyValues(t *testing.T) {
 }
 
 func TestAutoCleanUp(t *testing.T) {
-	ds := NewKeyValueCache[string](1 * time.Second)
+	sweepInterval := 500 * time.Millisecond
+	ds, err := NewKeyValueCache[string](context.Background(), 1*time.Second, WithSweeping(sweepInterval))
+	if err != nil {
+		t.Fatalf("init failed")
+	}
 	key, value := "tempKey", "tempValue"
 	ds.Put(key, value)
-
-	done := make(chan bool)
-	go ds.AutoCleanUp(500*time.Millisecond, done)
 
 	// Wait for TTL to expire and cleanup to run
 	time.Sleep(2 * time.Second)
@@ -95,12 +110,13 @@ func TestAutoCleanUp(t *testing.T) {
 	if ok {
 		t.Errorf("expected key to be cleaned up, but it still exists")
 	}
-
-	done <- true
 }
 
 func TestConcurrentAccess(t *testing.T) {
-	ds := NewKeyValueCache[string](5 * time.Second)
+	ds, err := NewKeyValueCache[string](context.Background(), 5*time.Second)
+	if err != nil {
+		t.Fail()
+	}
 
 	// Run concurrent writes using integer range
 	for i := range make([]struct{}, 100) {
@@ -118,8 +134,8 @@ func TestConcurrentAccess(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	for i := range make([]struct{}, 100) {
 		val, ok := ds.Get(fmt.Sprintf("key%d", i))
-		if !ok || val.Value != fmt.Sprintf("value%d", i) {
-			t.Errorf("expected value %v, got %v", fmt.Sprintf("value%d", i), val.Value)
+		if !ok || val != fmt.Sprintf("value%d", i) {
+			t.Errorf("expected value %v, got %v", fmt.Sprintf("value%d", i), val)
 		}
 	}
 }

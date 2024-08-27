@@ -1,87 +1,106 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
 )
 
 // inMemoryCache is the implementation of the datastore
-type inMemoryCache[T any] struct {
-	elements map[string]CacheElement[T]
+type InMemoryCache[T any] struct {
+	elements sync.Map
 	ttl      time.Duration
-	sync.RWMutex
+	opts     Options
 }
 
-// NewKeyValueDataStore creates a new instance of the datastore with the given TTL
-func NewKeyValueCache[T any](ttl time.Duration) Cache[T] {
-	return &inMemoryCache[T]{
-		elements: make(map[string]CacheElement[T]),
-		ttl:      ttl,
+// NewKeyValueCache creates a new instance of the datastore with the given TTL
+func NewKeyValueCache[T any](ctx context.Context, ttl time.Duration, opts ...Option) (*InMemoryCache[T], error) {
+	memCache := InMemoryCache[T]{
+		ttl: ttl,
 	}
+	err := memCache.opts.Apply(opts...)
+	if err != nil {
+		return nil, fmt.Errorf("options apply: %w", err)
+	}
+
+	if memCache.opts.sweepInterval > 0 {
+		go memCache.sweep(ctx, memCache.opts.sweepInterval)
+	}
+
+	return &memCache, nil
 }
 
 // Get retrieves a value from the datastore, returning whether it exists and is valid
-func (ele *inMemoryCache[T]) Get(key string) (CacheElement[T], bool) {
-	ele.RLock()
-	defer ele.RUnlock()
-
-	val, ok := ele.elements[key]
-	if ok && ele.isExpired(val) {
-		return CacheElement[T]{}, false
+func (c *InMemoryCache[T]) Get(key string) (T, bool) {
+	value, ok := c.elements.Load(key)
+	if !ok {
+		var zeroValue T
+		return zeroValue, false
 	}
-	return val, ok
+
+	element := value.(CacheElement[T])
+	if element.CreatedAt.Add(element.TTL).Before(time.Now()) {
+		var zeroValue T
+		c.elements.Delete(key)
+		return zeroValue, false
+	}
+
+	return element.Value, true
 }
 
 // Put adds a new record to the datastore
-func (ele *inMemoryCache[T]) Put(key string, value T) {
-	ele.Lock()
-	defer ele.Unlock()
-
-	ele.elements[key] = CacheElement[T]{
+func (c *InMemoryCache[T]) Put(key string, value T) {
+	element := CacheElement[T]{
 		Key:       key,
 		Value:     value,
-		CreatedAt: time.Now().UTC(),
-		TTL:       ele.ttl,
+		CreatedAt: time.Now(),
+		TTL:       c.ttl,
 	}
+	c.elements.Store(key, element)
 }
 
 // GetAllKeyValues returns all valid key-value pairs, removing expired records
-func (ele *inMemoryCache[T]) GetAllKeyValues() map[string]T {
-	ele.Lock()
-	defer ele.Unlock()
-
-	allRecord := make(map[string]T)
-	for key, val := range ele.elements {
-		if ele.isExpired(val) {
-			delete(ele.elements, key)
-			continue
+func (c *InMemoryCache[T]) GetAllKeyValues() map[string]T {
+	results := make(map[string]T)
+	c.elements.Range(func(key, value interface{}) bool {
+		element := value.(CacheElement[T])
+		if !c.isExpired(element) {
+			results[key.(string)] = element.Value
+		} else {
+			c.elements.Delete(key)
 		}
-		allRecord[key] = val.Value
-	}
-	return allRecord
+		return true
+	})
+	return results
+}
+
+// evict removed the expired keys
+func (c *InMemoryCache[T]) evict() {
+	c.elements.Range(func(key, value interface{}) bool {
+		element := value.(CacheElement[T])
+		if c.isExpired(element) {
+			c.elements.Delete(key)
+		}
+		return true
+	})
 }
 
 // isExpired checks if a record has exceeded its TTL and deletes it if so
-func (ele *inMemoryCache[T]) isExpired(record CacheElement[T]) bool {
-	if time.Since(record.CreatedAt) > ele.ttl {
-		fmt.Println("Removing data with key:", record.Key, "value:", record.Value)
-		return true
-	}
-	return false
+func (c *InMemoryCache[T]) isExpired(record CacheElement[T]) bool {
+	return time.Since(record.CreatedAt) > c.ttl
 }
 
-// AutoCleanUp runs as a goroutine to automatically remove expired records
-func (ele *inMemoryCache[T]) AutoCleanUp(checkInterval time.Duration, done <-chan bool) {
-	ticker := time.NewTicker(checkInterval)
+func (c *InMemoryCache[T]) sweep(ctx context.Context, sweep time.Duration) {
+	ticker := time.NewTicker(sweep)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
-			ele.GetAllKeyValues()
-		case <-done:
-			fmt.Println("Closing the AutoCleanUp")
+			c.evict()
+		case <-ctx.Done():
+			fmt.Println("sweeping closed")
 			return
 		}
 	}
