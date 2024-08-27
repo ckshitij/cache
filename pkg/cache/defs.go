@@ -1,6 +1,9 @@
 package cache
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type CacheElement[T any] struct {
 	Key       string
@@ -13,5 +16,5 @@ type Cache[T any] interface {
 	Get(key string) (CacheElement[T], bool)
 	Put(key string, value T)
 	GetAllKeyValues() map[string]T
-	AutoCleanUp(checkInterval time.Duration, done <-chan bool)
+	Sweep(ctx context.Context, checkInterval time.Duration)
 }

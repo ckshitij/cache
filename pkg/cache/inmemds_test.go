@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -84,8 +85,9 @@ func TestAutoCleanUp(t *testing.T) {
 	key, value := "tempKey", "tempValue"
 	ds.Put(key, value)
 
-	done := make(chan bool)
-	go ds.AutoCleanUp(500*time.Millisecond, done)
+	ctx, fn := context.WithCancel(context.Background())
+	defer fn()
+	go ds.Sweep(ctx, 500*time.Millisecond)
 
 	// Wait for TTL to expire and cleanup to run
 	time.Sleep(2 * time.Second)
@@ -95,8 +97,6 @@ func TestAutoCleanUp(t *testing.T) {
 	if ok {
 		t.Errorf("expected key to be cleaned up, but it still exists")
 	}
-
-	done <- true
 }
 
 func TestConcurrentAccess(t *testing.T) {

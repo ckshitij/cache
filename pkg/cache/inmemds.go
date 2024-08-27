@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -64,15 +65,11 @@ func (ele *inMemoryCache[T]) GetAllKeyValues() map[string]T {
 
 // isExpired checks if a record has exceeded its TTL and deletes it if so
 func (ele *inMemoryCache[T]) isExpired(record CacheElement[T]) bool {
-	if time.Since(record.CreatedAt) > ele.ttl {
-		fmt.Println("Removing data with key:", record.Key, "value:", record.Value)
-		return true
-	}
-	return false
+	return time.Since(record.CreatedAt) > ele.ttl
 }
 
 // AutoCleanUp runs as a goroutine to automatically remove expired records
-func (ele *inMemoryCache[T]) AutoCleanUp(checkInterval time.Duration, done <-chan bool) {
+func (ele *inMemoryCache[T]) Sweep(ctx context.Context, checkInterval time.Duration) {
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
 
@@ -80,7 +77,7 @@ func (ele *inMemoryCache[T]) AutoCleanUp(checkInterval time.Duration, done <-cha
 		select {
 		case <-ticker.C:
 			ele.GetAllKeyValues()
-		case <-done:
+		case <-ctx.Done():
 			fmt.Println("Closing the AutoCleanUp")
 			return
 		}

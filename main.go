@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -10,54 +11,21 @@ import (
 	"github.com/ckshitij/cache/pkg/cache"
 )
 
-func multiSignalHandler(sig os.Signal, done chan bool) {
-	switch sig {
-	case syscall.SIGHUP:
-		fmt.Println("Signal: syscall.SIGHUP ", sig.String())
-		done <- true
-		time.Sleep(1 * time.Second)
-		close(done)
-		os.Exit(0)
-	case syscall.SIGINT:
-		fmt.Println("Signal: syscall.SIGINT ", sig.String())
-		done <- true
-		time.Sleep(1 * time.Second)
-		close(done)
-		os.Exit(0)
-	case syscall.SIGTERM:
-		fmt.Println("Signal: syscall.SIGTERM ", sig.String())
-		done <- true
-		time.Sleep(1 * time.Second)
-		close(done)
-		os.Exit(0)
-	default:
-		fmt.Println("Unhandled/unknown signal")
-	}
-}
-
 /*
 Demo to how to consume the inmemory key value datastore
 */
 func main() {
-	sigchnl := make(chan os.Signal, 1)
-	signal.Notify(
-		sigchnl,
+	ctx, cancel := signal.NotifyContext(context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
 		syscall.SIGHUP,
 		syscall.SIGINT,
-		syscall.SIGTERM,
+		os.Kill,
 	) // we can add more sycalls.SIGQUIT etc.
-
-	done := make(chan bool)
-	go func() {
-		for {
-			s := <-sigchnl
-			multiSignalHandler(s, done)
-		}
-	}()
+	defer cancel()
 
 	ds := cache.NewKeyValueCache[string](1 * time.Second)
-
-	go ds.AutoCleanUp(3*time.Second, done)
+	go ds.Sweep(ctx, 3*time.Second)
 
 	var i int64 = 0
 	for {
