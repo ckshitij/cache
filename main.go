@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ckshitij/cache/pkg/cache"
+	"github.com/ckshitij/cache/pkg/cache/datastore"
 )
 
 type Person struct {
@@ -29,7 +30,7 @@ func main() {
 
 	keysTTL := 1 * time.Second
 	sweepTime := 3 * time.Second
-	ds, err := cache.NewKeyValueCache[Person](ctx, keysTTL, cache.WithSweeping(sweepTime))
+	ds, err := datastore.NewDatastore[Person](ctx, keysTTL, cache.WithSweeping(sweepTime))
 	if err != nil {
 		fmt.Println("failed to initialize cache with error : ", err.Error())
 	}

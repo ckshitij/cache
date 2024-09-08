@@ -1,17 +1,19 @@
-package cache
+package datastore
 
 import (
 	"context"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/ckshitij/cache/pkg/cache"
 )
 
-func TestNewKeyValueDataStore(t *testing.T) {
+func TestNewDataStore(t *testing.T) {
 	key, value := "DOB", "26/07/1996"
 	ttl := time.Second
 	sweep := 3 * time.Second
-	ds, err := NewKeyValueCache[string](context.Background(), ttl, WithSweeping(sweep))
+	ds, err := NewDatastore[string](context.Background(), ttl, cache.WithSweeping(sweep))
 	if err != nil {
 		t.Fatalf("initialize failed")
 	}
@@ -33,7 +35,7 @@ func TestNewKeyValueDataStore(t *testing.T) {
 }
 
 func TestPutAndGet(t *testing.T) {
-	ds, err := NewKeyValueCache[string](context.Background(), 5*time.Second)
+	ds, err := NewDatastore[string](context.Background(), 5*time.Second)
 	if err != nil {
 		t.Fatalf("initialize failed")
 	}
@@ -53,7 +55,7 @@ func TestPutAndGet(t *testing.T) {
 }
 
 func TestGetWithTTLExpiry(t *testing.T) {
-	ds, err := NewKeyValueCache[string](context.Background(), 1*time.Second)
+	ds, err := NewDatastore[string](context.Background(), 1*time.Second)
 	if err != nil {
 		t.Fatalf("initialize failed")
 	}
@@ -73,7 +75,7 @@ func TestGetWithTTLExpiry(t *testing.T) {
 }
 
 func TestGetAllKeyValues(t *testing.T) {
-	ds, err := NewKeyValueCache[string](context.Background(), 5*time.Second)
+	ds, err := NewDatastore[string](context.Background(), 5*time.Second)
 	if err != nil {
 		t.Fatalf("cache init failed")
 	}
@@ -95,7 +97,7 @@ func TestGetAllKeyValues(t *testing.T) {
 
 func TestAutoSweep(t *testing.T) {
 	sweepInterval := 500 * time.Millisecond
-	ds, err := NewKeyValueCache[string](context.Background(), 1*time.Second, WithSweeping(sweepInterval))
+	ds, err := NewDatastore[string](context.Background(), 1*time.Second, cache.WithSweeping(sweepInterval))
 	if err != nil {
 		t.Fatalf("init failed")
 	}
@@ -113,7 +115,7 @@ func TestAutoSweep(t *testing.T) {
 }
 
 func TestConcurrentAccess(t *testing.T) {
-	ds, err := NewKeyValueCache[string](context.Background(), 5*time.Second)
+	ds, err := NewDatastore[string](context.Background(), 5*time.Second)
 	if err != nil {
 		t.Fail()
 	}
