@@ -36,7 +36,7 @@ func NewAutoReload[T any](
 			make(map[string]cache.CacheElement[T]),
 		},
 		createdAt:       time.Now().UTC(),
-		refreshDuration: time.Minute,
+		refreshDuration: 10 * time.Second,
 		keys:            []string{},
 		activeInd:       0,
 		name:            cacheName,
@@ -47,8 +47,13 @@ func NewAutoReload[T any](
 		return AutoReload[T]{}, fmt.Errorf("options apply: %w", err)
 	}
 
+	autoReloadCache.lookupTable[autoReloadCache.activeInd], err = loadFunc()
+	if err != nil {
+		return AutoReload[T]{}, fmt.Errorf("cache initialization failed : %w", err)
+	}
+
 	if autoReloadCache.opts.AutoReloadInterval > 0 {
-		autoReloadCache.refreshDuration *= autoReloadCache.opts.AutoReloadInterval
+		autoReloadCache.refreshDuration *= 6 * autoReloadCache.opts.AutoReloadInterval
 	}
 
 	go autoReloadCache.triggerAutoReload(ctx, loadFunc)
