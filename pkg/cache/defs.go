@@ -16,13 +16,14 @@ Create new cache element, if ttl is not given
 then default value will be 1 day
 */
 func NewCacheElement[T any](key string, value T, ttl ...time.Duration) CacheElement[T] {
-	if len(ttl) < 1 {
-		ttl[0] = time.Hour * 24
+	var ttlDuration = []time.Duration{time.Duration(1) * time.Hour}
+	if len(ttl) > 0 {
+		ttlDuration[0] = ttl[0]
 	}
 	return CacheElement[T]{
 		Key:       key,
 		Value:     value,
 		CreatedAt: time.Now().UTC(),
-		TTL:       ttl[0],
+		TTL:       ttlDuration[0],
 	}
 }
