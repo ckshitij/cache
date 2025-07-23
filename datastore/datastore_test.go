@@ -5,15 +5,13 @@ import (
 	"fmt"
 	"testing"
 	"time"
-
-	"github.com/ckshitij/cache/pkg/cache"
 )
 
 func TestNewDataStore(t *testing.T) {
 	key, value := "DOB", "26/07/1996"
 	ttl := time.Second
 	sweep := 3 * time.Second
-	ds, err := NewDatastore[string](context.Background(), ttl, cache.WithSweeping(sweep))
+	ds, err := NewDatastore[string, string](context.Background(), ttl, WithSweeping(sweep))
 	if err != nil {
 		t.Fatalf("initialize failed")
 	}
@@ -35,11 +33,11 @@ func TestNewDataStore(t *testing.T) {
 }
 
 func TestPutAndGet(t *testing.T) {
-	ds, err := NewDatastore[string](context.Background(), 5*time.Second)
+	ds, err := NewDatastore[int, string](context.Background(), 5*time.Second)
 	if err != nil {
 		t.Fatalf("initialize failed")
 	}
-	key, value := "username", "user123"
+	key, value := 10, "user123"
 
 	// Test putting and getting a value
 	ds.Put(key, value)
@@ -55,11 +53,11 @@ func TestPutAndGet(t *testing.T) {
 }
 
 func TestGetWithTTLExpiry(t *testing.T) {
-	ds, err := NewDatastore[string](context.Background(), 1*time.Second)
+	ds, err := NewDatastore[float64, string](context.Background(), 1*time.Second)
 	if err != nil {
 		t.Fatalf("initialize failed")
 	}
-	key, value := "sessionID", "abc123"
+	key, value := 1.2, "abc123"
 
 	// Put value
 	ds.Put(key, value)
@@ -75,13 +73,13 @@ func TestGetWithTTLExpiry(t *testing.T) {
 }
 
 func TestGetAllKeyValues(t *testing.T) {
-	ds, err := NewDatastore[string](context.Background(), 5*time.Second)
+	ds, err := NewDatastore[rune, string](context.Background(), 5*time.Second)
 	if err != nil {
 		t.Fatalf("cache init failed")
 	}
-	ds.Put("key1", "value1")
-	ds.Put("key2", "value2")
-	ds.Put("key3", "value3")
+	ds.Put('c', "value1")
+	ds.Put('b', "value2")
+	ds.Put('e', "value3")
 
 	allRecords := ds.GetAllKeyValues()
 	expectedLen := 3
@@ -90,14 +88,14 @@ func TestGetAllKeyValues(t *testing.T) {
 		t.Errorf("expected %d records, got %d", expectedLen, len(allRecords))
 	}
 
-	if allRecords["key1"] != "value1" || allRecords["key2"] != "value2" || allRecords["key3"] != "value3" {
+	if allRecords['c'] != "value1" || allRecords['b'] != "value2" || allRecords['e'] != "value3" {
 		t.Errorf("unexpected values in GetAllKeyValues result")
 	}
 }
 
 func TestAutoSweep(t *testing.T) {
 	sweepInterval := 500 * time.Millisecond
-	ds, err := NewDatastore[string](context.Background(), 1*time.Second, cache.WithSweeping(sweepInterval))
+	ds, err := NewDatastore[string, string](context.Background(), 1*time.Second, WithSweeping(sweepInterval))
 	if err != nil {
 		t.Fatalf("init failed")
 	}
@@ -115,7 +113,7 @@ func TestAutoSweep(t *testing.T) {
 }
 
 func TestConcurrentAccess(t *testing.T) {
-	ds, err := NewDatastore[string](context.Background(), 5*time.Second)
+	ds, err := NewDatastore[string, string](context.Background(), 5*time.Second)
 	if err != nil {
 		t.Fail()
 	}

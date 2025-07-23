@@ -1,11 +1,8 @@
-module github.com/ckshitij/cache
+module github.com/ckshitij/memstore
 
 go 1.23
 
-require (
-	github.com/ckshitij/data-store v0.0.0-20240822193149-2dc087ac5122
-	github.com/stretchr/testify v1.9.0
-)
+require github.com/stretchr/testify v1.9.0
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
