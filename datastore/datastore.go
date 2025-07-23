@@ -3,6 +3,7 @@ package datastore
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 )
@@ -31,7 +32,14 @@ func NewDatastore[K MapKey, T any](
 	}
 
 	if memCache.opts.SweepInterval > 0 {
-		go memCache.sweep(ctx, memCache.opts.SweepInterval)
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("panic in sweep goroutine: %v\n", r)
+				}
+			}()
+			memCache.sweep(ctx, memCache.opts.SweepInterval)
+		}()
 	}
 
 	return &memCache, nil
@@ -40,10 +48,14 @@ func NewDatastore[K MapKey, T any](
 // Get retrieves a value from the datastore, returning whether it exists and is valid
 func (ele *Datastore[K, T]) Get(key K) (CacheItem[T], bool) {
 	ele.mutex.RLock()
-	defer ele.mutex.RUnlock()
-
 	val, ok := ele.elements[key]
+	ele.mutex.RUnlock()
+
 	if ok && ele.isExpired(val) {
+		// Upgrade to write lock and remove the expired key
+		ele.mutex.Lock()
+		delete(ele.elements, key)
+		ele.mutex.Unlock()
 		return CacheItem[T]{}, false
 	}
 	return val, ok
@@ -73,7 +85,7 @@ func (ele *Datastore[K, T]) GetAllKeyValues() map[K]T {
 	return allRecord
 }
 
-// isExpired checks if a record has exceeded its TTL and deletes it if so
+// isExpired checks if a record has exceeded its TTL
 func (ele *Datastore[K, T]) isExpired(record CacheItem[T]) bool {
 	return time.Since(record.CreatedAt) > ele.ttl
 }
@@ -86,9 +98,9 @@ func (ele *Datastore[K, T]) sweep(ctx context.Context, checkInterval time.Durati
 	for {
 		select {
 		case <-ticker.C:
-			ele.GetAllKeyValues()
+			ele.GetAllKeyValues() // Will clean up expired elements
 		case <-ctx.Done():
-			fmt.Println("sweep closed")
+			log.Println("sweep closed")
 			return
 		}
 	}
